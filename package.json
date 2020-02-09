@@ -26,7 +26,8 @@
   },
   "scripts": {
     "lint": "eslint src",
-    "build": "webpack"
+    "build": "webpack --mode=production --config build/webpack.config.js",
+    "start": "webpack-dev-server --open --config build/webpack.dev.js"
   },
   "devDependencies": {
     "babel-core": "^6.26.3",
@@ -39,11 +40,15 @@
     "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
+    "html-webpack-plugin": "^4.0.0-beta.3",
     "mini-css-extract-plugin": "^0.4.3",
     "optimize-css-assets-webpack-plugin": "^5.0.1",
     "uglify-js": "^3.4.9",
+    "uglifyjs-webpack-plugin": "^2.2.0",
     "webpack": "^4.20.2",
-    "webpack-cli": "^3.1.1"
+    "webpack-cli": "^3.1.1",
+    "webpack-dev-server": "^3.10.3",
+    "webpack-merge": "^4.2.2"
   },
   "engines": {
     "node": ">= 8.0.0",
@@ -53,5 +58,8 @@
     "> 1%",
     "last 2 versions",
     "not ie <= 8"
-  ]
+  ],
+  "dependencies": {
+    "dom-to-image": "^2.6.0"
+  }
 }
