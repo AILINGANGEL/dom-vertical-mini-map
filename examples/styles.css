@@ -28,3 +28,12 @@
 .has-error {
   border-color: red;
 }
+
+#mini-map {
+  position: fixed;
+  border: 1px solid black;
+  right: 0;
+  top: 0;
+  /* border-top: none; */
+  /* border-bottom: none; */
+}

@@ -67,11 +67,7 @@ for (let i = 0; i < 50; ++i) {
 
 const createMap = function (map) {
   if (map != null) {
-    let mapElement = map.root
-
-    if (mapElement == null) {
-      map.create()
-    }
+    map.create()
   }
 }
 
@@ -96,53 +92,12 @@ const refreshMap = function (map) {
 }
 
 const config = {
+  // target: '.grid',
+  container: '#mini-map',
+  scrollTarget: document.documentElement,
   styles: {
-    width: '5rem'
-  },
-  points: [
-    {
-      draw: {
-        selector: '.form-group',
-        selectorContains: 'textarea.has-error',
-        styles: {
-          backgroundColor: 'purple'
-        }
-      },
-      focus: {
-        enabled: true,
-        selector: 'textarea'
-      },
-      scroll: {
-        type: 'middle'
-      },
-      titleConstructor: [
-        {
-          selector: 'label',
-          textContent: true
-        }
-      ]
-    },
-
-    {
-      draw: {
-        selector: '.form-group',
-        selectorContains: 'input.has-error'
-      },
-      focus: {
-        enabled: true,
-        selector: 'input'
-      },
-      scroll: {
-        type: 'middle'
-      },
-      titleConstructor: [
-        {
-          selector: 'label',
-          textContent: true
-        }
-      ]
-    }
-  ]
+    width: 200
+  }
 }
 
 const buttonAdd = document.querySelector('#add')

@@ -1,50 +1,56 @@
 /* global MutationObserver */
+import domToImage from 'dom-to-image'
 
 export default class DomVerticalMiniMap {
   // noinspection JSAnnotator
 
   /**
-   *
+   * @param {HTMLElement or String} target
+   * @param {HTMLElement} scrollTarget
+   * @param {String} container
    * @param {String} stylesBackgroundColor
    * @param {String} stylesBorderColor
    * @param {String} stylesPosition
    * @param {String} stylesWidth
    * @param {Number} stylesZIndex
    * @param {Boolean} scrollEnabled
-   * @param {String} scrollStylesBackgroundColor
-   * @param {Array} points
+   * @param {String} viewportStylesBackgroundColor
    */
   constructor (
     {
+      target,
+      scrollTarget,
+      container,
       styles: {
-        backgroundColor: stylesBackgroundColor = 'rgba(248, 249, 250, 1)',
-        borderColor: stylesBorderColor = 'rgba(108, 117, 125, 1)',
-        position: stylesPosition = 'right',
-        width: stylesWidth = '1rem',
-        zIndex: stylesZIndex = 1000
-      } = {},
+        width: mapWidth,
+        height: mapHeight = Infinity
+      },
       scroll: {
         enabled: scrollEnabled = true,
         styles: {
-          backgroundColor: scrollStylesBackgroundColor = 'rgba(108, 117, 125, 0.3)'
+          backgroundColor: viewportStylesBackgroundColor = 'rgba(108, 117, 125, 0.3)'
         } = {}
-      } = {},
-      points = []
+      } = {}
     } = {}
   ) {
     this._version = VERSION
-    this._mapElement = null
-    this._scrollElement = null
-    this._mutationObserver = null
-    this._mapPoints = []
 
-    this._mapElementStyles = {
-      backgroundColor: stylesBackgroundColor,
-      borderColor: stylesBorderColor,
-      position: ['right', 'left'].includes(stylesPosition) ? stylesPosition : 'right',
-      width: stylesWidth,
-      zIndex: stylesZIndex
+    if (typeof target === 'string') {
+      this._target = document.querySelector(target)
+    } else if (target && target.nodeType === 1) {
+      this._target = target
+    } else {
+      this._target = document.body
     }
+    // 滑动目标元素，用来设置minimap上的滚动元素位置
+    this._scrollTarget = scrollTarget || this._target
+    // minimap的容器
+    this._mapElement = document.querySelector(container)
+    // 视口元素
+    this._viewPortElement = null
+    this._mapPicture = new Image()
+
+    this._mutationObserver = null
 
     this._isScrollElementEnabled = (
       typeof scrollEnabled === 'boolean'
@@ -52,11 +58,119 @@ export default class DomVerticalMiniMap {
         : true
     )
 
-    this._scrollElementStyles = {
-      backgroundColor: scrollStylesBackgroundColor
+    this._mapElementStyles = {
+      width: mapWidth,
+      height: mapHeight
     }
 
-    this._points = points
+    this._viewPortElementStyles = {
+      backgroundColor: viewportStylesBackgroundColor
+    }
+  }
+
+  /**
+   * Initialize component DomVerticalMiniMap.
+   *
+   * @private
+   */
+  async _init () {
+    const isScrollElementEnabled = this._isScrollElementEnabled
+
+    this._initMapElement()
+
+    if (isScrollElementEnabled) {
+      this._initViewPortElement()
+    }
+    await this._initMapPicture()
+
+    const mapElement = this._mapElement
+
+    if (isScrollElementEnabled) {
+      mapElement.appendChild(this._viewPortElement)
+    }
+
+    // this._initMutationObserver()
+
+    // this._mutationObserver.observe(this._mapElement, {
+    //   attributes: true,
+    //   characterData: true,
+    //   childList: true,
+    //   subtree: true
+    // })
+  }
+
+  /**
+   * Initialize {HTMLElement} MapElement.
+   *
+   * @private
+   */
+  _initMapElement () {
+    this._mapElement.style.overflow = 'auto'
+    this._mapElement.addEventListener(
+      'click',
+      DomVerticalMiniMap.scrollTargetTo.bind(this) /* eslint-disable-line */
+    )
+  }
+
+  /**
+   * Initialize {HTMLElement} MapPicture.
+   *
+   * @private
+   */
+  async _initMapPicture () {
+    const dataUrl = await domToImage.toPng(this._target)
+    this._mapPicture.src = dataUrl
+    const { width, height } = this._mapElementStyles
+    if (width) {
+      this._mapPicture.width = width
+    }
+
+    this._mapPicture.onload = () => {
+      // 找出minimap的最大高度
+      // 视口的高度-Minimap距离视口顶部的距离- marginTop - borderTopWidth - padding-top
+      const { top } = this._mapElement.getBoundingClientRect()
+      const { 'margin-top': marginTop, 'border-top-width': borderTopWidth, 'padding-top': paddingTop, 'padding-bottom': paddingBottom, 'box-sizing': boxSizing } = window.getComputedStyle(this._mapElement)
+      const picHeight = this._mapPicture.clientHeight
+      let maxHeight = window.innerHeight - top - parseInt(marginTop)
+      if (boxSizing === 'content-box') {
+        maxHeight -= (parseInt(borderTopWidth) * 2 + parseInt(paddingTop) + parseInt(paddingBottom))
+      }
+      this._mapElement.style.height = Math.min(height, picHeight, maxHeight) + 'px'
+    }
+
+    this._mapElement.appendChild(this._mapPicture)
+  }
+  /**
+   * Initialize {MutationObserver} _mutationObserver for observe DOM.
+   *
+   * @private
+   */
+  _initMutationObserver () {
+    this._mutationObserver = new MutationObserver(mutations =>
+      mutations.forEach(mutation => {
+        if (this._isScrollElementEnabled) {
+          this._setViewPortElementStyle()
+        }
+      })
+    )
+  }
+
+  /**
+   * Initialize {HTMLElement} _viewPortElement.
+   *
+   * @private
+   */
+  _initViewPortElement () {
+    this._viewPortElement = document.createElement('div')
+
+    this._viewPortElement.classList.add('dom-vertical-mini-map-scroll')
+    // this._viewPortElement.style.display = 'none'
+
+    this._viewPortElement.style.backgroundColor = this._viewPortElementStyles['backgroundColor']
+    const { clientHeight: targetHeight, clientWidth: targetWidth } = this._scrollTarget
+    this._viewPortElement.style.height = this._mapElementStyles.width * (targetHeight / targetWidth) + 'px'
+    window.addEventListener('scroll', this._setViewPortElementStyle.bind(this))
+    // window.addEventListener('resize', this._setViewPortElementStyle.bind(this))
   }
 
   /**
@@ -105,13 +219,16 @@ export default class DomVerticalMiniMap {
   }
 
   /**
-   * Scroll Document vertically to coordinate.
+   * Click map to scroll the target vertically to coordinate.
    *
    * @param {Event} event
    */
-  static scrollDocumentTo (event) {
-    const { windowHeight, documentHeight } = DomVerticalMiniMap.getDocumentProperties()
-    window.scrollTo(0, (documentHeight / windowHeight * event['clientY']))
+  static scrollTargetTo (event) {
+    const { offsetY } = event
+    this._target.scrollTo(0, offsetY)
+    let originPicWidth = this._mapPicture.naturalWidth
+    let currentPicWidth = this._mapPicture.width
+    this._scrollTarget.scrollTo(0, offsetY * originPicWidth / currentPicWidth)
   }
 
   /**
@@ -170,358 +287,42 @@ export default class DomVerticalMiniMap {
 
     event.stopPropagation()
   }
-
   /**
-   * Initialize component DomVerticalMiniMap.
+   * Set 'style' attribute of _viewPortElement.
    *
    * @private
    */
-  _init () {
-    const isScrollElementEnabled = this._isScrollElementEnabled
-
-    this._initMapElement()
-
-    if (isScrollElementEnabled) {
-      this._initScrollElement()
-    }
-
-    this._initMapPoints()
-
-    window.addEventListener('resize', this._setMapPointStyles.bind(this))
-
-    const mapElement = this._mapElement
-
-    if (isScrollElementEnabled) {
-      mapElement.appendChild(this._scrollElement)
-    }
-
-    const container = document.documentElement || document.body
-
-    container.appendChild(mapElement)
-
-    this._initMutationObserver()
-
-    this._mutationObserver.observe(container, {
-      attributes: true,
-      characterData: true,
-      childList: true,
-      subtree: true
-    })
-  }
-
-  /**
-   * Initialize {HTMLElement} MapElement.
-   *
-   * @private
-   */
-  _initMapElement () {
-    this._mapElement = document.createElement('div')
-
-    const mapElement = this._mapElement
-    const mapElementStyles = this._mapElementStyles
-    const mapElementStylesWidth = mapElementStyles['width']
-
-    mapElement.classList.add('dom-vertical-mini-map')
-
-    mapElement.style.backgroundColor = mapElementStyles['backgroundColor']
-    mapElement.style.width = mapElementStylesWidth
-    mapElement.style.borderColor = mapElementStyles['borderColor']
-    mapElement.style.zIndex = mapElementStyles['zIndex'].toString()
-
-    if (mapElementStyles.position === 'left') {
-      mapElement.style.left = '0'
-      mapElement.style.right = `calc(100% - ${mapElementStylesWidth})`
-      mapElement.style.borderRightWidth = '1px'
+  _setViewPortElementStyle () {
+    const { clientHeight: mapHeight, scrollHeight: mapScrollHeight } = this._mapElement
+    const { scrollTop, scrollHeight, clientHeight } = this._scrollTarget
+    const picHeight = this._mapPicture.height
+    // 视口移动的top值/minimap的总高度 === 目标滚动元素滚动的距离/ 目标滚动元素的总高度
+    const viewPortTop = scrollTop / scrollHeight * mapScrollHeight
+    console.log('------------')
+    console.log('目标元素=> 可见高度, 滑动的距离, 总高度, 可见高度/总高度, 可滑动距离', clientHeight, scrollTop, scrollHeight, clientHeight / scrollHeight, scrollHeight - clientHeight)
+    console.log('minimap当前视口区域=>滑动的距离, 高度, 视口的高度/总高度', viewPortTop, this._viewPortElement.clientHeight, this._viewPortElement.clientHeight / mapScrollHeight)
+    console.log('minimap=> 可见高度, 总高度, 可滑动距离', mapHeight, mapScrollHeight, mapScrollHeight - mapHeight)
+    console.log('map可滑动距离/目标元素可滑动距离', (mapScrollHeight - mapHeight) / (scrollHeight - clientHeight))
+    console.log('map图片=> 高度', picHeight)
+    if (mapHeight < mapScrollHeight) {
+      // minimap有溢出，需要跟随target滚动
+      // 目标滚动元素滚动的距离/目标滚动元素的总高度 === minimap滚动的距离 / minimap的总高度
+      // const top = scrollTop / scrollHeight * mapScrollHeight
+      const scrollTargetOverflowHeight = scrollHeight - clientHeight
+      const mapOverflowHeight = mapScrollHeight - mapHeight
+      const mapTop = scrollTop * mapOverflowHeight / scrollTargetOverflowHeight
+      console.log('minimap scroll dis=>', mapTop)
+      this._mapElement.scrollTo({ top: mapTop })
+      const viewportTopVal = viewPortTop - mapTop
+      console.log('viewport scroll dis=>', viewportTopVal)
+      this._viewPortElement.style.top = viewportTopVal + 'px'
     } else {
-      mapElement.style.right = '0'
-      mapElement.style.left = `calc(100% - ${mapElementStylesWidth})`
-      mapElement.style.borderLeftWidth = '1px'
-    }
-
-    mapElement.addEventListener(
-      'click',
-      DomVerticalMiniMap.scrollDocumentTo.bind(event) /* eslint-disable-line */
-    )
-  }
-
-  /**
-   * Initialize all {HTMLElement} MapPoint elements.
-   *
-   * @private
-   */
-  _initMapPoints () {
-    const mapPoints = this._mapPoints
-    const points = this._points
-    const mapPointsElements = mapPoints.map(mapPoint => mapPoint['element'])
-
-    const tempElements = []
-    for (let i = 0, pointsLength = points.length; i < pointsLength; ++i) {
-      const point = points[i]
-      const draw = point['draw'] || {}
-      const selector = draw['selector']
-
-      if (selector == null) {
-        continue
+      // 没有溢出，只需要滚动视口viewport
+      // top不能小于0, top的值+视口的高度不能超过map的高度
+      const { clientHeight: viewPortHeight } = this._viewPortElement
+      if ((viewPortTop + viewPortHeight) < mapHeight) {
+        this._viewPortElement.style.top = viewPortTop + 'px'
       }
-
-      const selectorContains = draw['selectorContains']
-
-      const styles = draw['styles'] || {}
-      const styleBackgroundColor = styles['backgroundColor']
-      const styleOutlineColor = styles['outlineColor']
-
-      const focus = point['focus'] || {}
-      const focusEnabled = focus['enabled'] || false
-      const focusSelector = focus['selector']
-
-      const scroll = point['scroll'] || {}
-      const scrollEnabled = scroll['enabled'] || true
-      const scrollSelector = scroll['selector']
-      const scrollType = scroll['type'] || 'top'
-
-      const titleConstructor = point['titleConstructor'] || []
-
-      const elements = document.querySelectorAll(selector)
-      for (let j = 0, elementsLength = elements.length; j < elementsLength; ++j) {
-        const element = elements[j]
-
-        if (selectorContains != null) {
-          if (element.querySelector(selectorContains) == null) {
-            continue
-          }
-        }
-
-        tempElements.push(element)
-
-        if (mapPointsElements.includes(element)) {
-          continue
-        }
-
-        const mapPoint = {
-          element: element,
-          focusElement: null,
-          marker: document.createElement('div'),
-          scrollElement: null,
-          scrollEnabled: scrollEnabled,
-          scrollType: scrollType,
-          styles: {
-            backgroundColor: styleBackgroundColor,
-            outlineColor: styleOutlineColor
-          }
-        }
-
-        if (focusEnabled) {
-          mapPoint['focusElement'] = (
-            focusSelector == null
-              ? element
-              : element.querySelector(focusSelector)
-          )
-        }
-
-        if (scrollEnabled) {
-          mapPoint['scrollElement'] = (
-            scrollSelector == null
-              ? element
-              : element.querySelector(scrollSelector)
-          )
-        }
-
-        const titleConstructorLength = titleConstructor.length
-
-        let hint = (
-          titleConstructorLength
-            ? ''
-            : null
-        )
-
-        for (let k = 0; k < titleConstructorLength; ++k) {
-          const titleChunk = titleConstructor[k]
-
-          if (titleChunk.hasOwnProperty('text')) {
-            const titleText = titleChunk['text']
-
-            hint = (
-              k === 0
-                ? titleText
-                : `${hint}\n${titleText}`
-            )
-
-            continue
-          }
-
-          const titleSelector = titleChunk['selector']
-          const titleElement = (
-            titleSelector == null
-              ? element
-              : element.querySelector(titleSelector)
-          )
-
-          if (titleElement != null) {
-            const titleTextContent = titleElement['textContent'] || false
-
-            if (titleTextContent) {
-              const titleElementTextContent = titleElement.textContent
-
-              if (titleElementTextContent != null) {
-                hint = (
-                  k === 0
-                    ? titleElementTextContent
-                    : `${hint}\n${titleElementTextContent}`
-                )
-              }
-
-              continue
-            }
-
-            if (titleChunk.hasOwnProperty('attribute')) {
-              const titleElementAttributeValue = titleElement.getAttribute(titleChunk['attribute'])
-
-              if (titleElementAttributeValue != null) {
-                hint = (
-                  k === 0
-                    ? titleElementAttributeValue
-                    : `${hint}\n${titleElementAttributeValue}`
-                )
-              }
-            }
-          }
-        }
-
-        const marker = mapPoint['marker']
-
-        if (hint != null) {
-          marker.title = hint
-        }
-
-        if (scrollEnabled) {
-          marker.addEventListener('click', DomVerticalMiniMap.scrollDocumentToElement.bind(null, {
-            focusElement: mapPoint['focusElement'],
-            scrollElement: mapPoint['scrollElement'],
-            scrollType: mapPoint['scrollType']
-          }))
-        }
-
-        mapPoints.push(mapPoint)
-      }
-    }
-
-    const fragment = document.createDocumentFragment()
-    let index = mapPoints.length
-
-    const mapElements = this._mapElementStyles
-    const mapElementStylesBorderColor = mapElements['borderColor']
-    const mapElementZindex = mapElements['zIndex']
-
-    while (index--) {
-      const mapPoint = mapPoints[index]
-      const element = mapPoint['element']
-      const marker = mapPoint['marker']
-      const styles = mapPoint['styles']
-      const scrollEnabled = mapPoint['scrollEnabled']
-
-      marker.classList.add('dom-vertical-mini-map-point')
-      marker.style.outlineColor = styles['outlineColor'] || mapElementStylesBorderColor
-      marker.style.backgroundColor = styles['backgroundColor'] || 'rgba(220, 53, 69, 1)'
-      marker.style.zIndex = (mapElementZindex + 1).toString()
-
-      if (tempElements.includes(element)) {
-        fragment.appendChild(marker)
-      } else {
-        if (scrollEnabled) {
-          marker.removeEventListener('click', DomVerticalMiniMap.scrollDocumentToElement.bind(null, {
-            focusElement: mapPoint['focusElement'],
-            scrollElement: mapPoint['scrollElement'],
-            scrollType: mapPoint['scrollType']
-          }))
-        }
-
-        marker.remove()
-        mapPoints.splice(index, 1)
-      }
-    }
-
-    this._mapElement.appendChild(fragment)
-  }
-
-  /**
-   * Initialize {MutationObserver} _mutationObserver for observe DOM.
-   *
-   * @private
-   */
-  _initMutationObserver () {
-    const self = this
-
-    this._mutationObserver = new MutationObserver(mutations =>
-      mutations.forEach(mutation => {
-        const target = mutation.target
-
-        if (!self._mapElement.contains(target)) {
-          if (self._isScrollElementEnabled) {
-            self._setScrollElementStyle()
-          }
-
-          self._initMapPoints()
-          self._setMapPointStyles()
-        }
-      })
-    )
-  }
-
-  /**
-   * Initialize {HTMLElement} _scrollElement.
-   *
-   * @private
-   */
-  _initScrollElement () {
-    this._scrollElement = document.createElement('div')
-
-    const scrollElement = this._scrollElement
-
-    scrollElement.classList.add('dom-vertical-mini-map-scroll')
-
-    scrollElement.style.backgroundColor = this._scrollElementStyles['backgroundColor']
-    scrollElement.style.zIndex = (this._mapElementStyles['zIndex'] + 2).toString()
-
-    window.addEventListener('scroll', this._setScrollElementStyle.bind(this))
-    window.addEventListener('resize', this._setScrollElementStyle.bind(this))
-  }
-
-  /**
-   * Set 'style' attribute of all MapPoint elements.
-   *
-   * @private
-   */
-  _setMapPointStyles () {
-    const mapPoints = this._mapPoints
-    const { documentHeight } = DomVerticalMiniMap.getDocumentProperties()
-
-    for (let i = 0, length = mapPoints.length; i < length; ++i) {
-      const mapPoint = mapPoints[i]
-      const marker = mapPoint['marker']
-
-      const { bottom, top } = DomVerticalMiniMap.getElementCoordinates(mapPoint['element'])
-
-      marker.style.bottom = `${100 / documentHeight * (documentHeight - bottom)}%`
-      marker.style.top = `${100 / documentHeight * top}%`
-    }
-  }
-
-  /**
-   * Set 'style' attribute of _scrollElement.
-   *
-   * @private
-   */
-  _setScrollElementStyle () {
-    const scrollElement = this._scrollElement
-
-    const { windowHeight, documentHeight, documentScrollTop } = DomVerticalMiniMap.getDocumentProperties()
-
-    if (windowHeight < documentHeight) {
-      scrollElement.style.display = 'block'
-      scrollElement.style.bottom = `${100 / documentHeight * (documentHeight - documentScrollTop - windowHeight)}%`
-      scrollElement.style.top = `${100 / documentHeight * documentScrollTop}%`
-    } else {
-      scrollElement.style.display = 'none'
     }
   }
 
@@ -535,10 +336,8 @@ export default class DomVerticalMiniMap {
     const isScrollElementEnabled = this._isScrollElementEnabled
 
     if (isScrollElementEnabled) {
-      this._setScrollElementStyle()
+      this._setViewPortElementStyle()
     }
-
-    this._setMapPointStyles()
   }
 
   /**
@@ -553,38 +352,26 @@ export default class DomVerticalMiniMap {
     this._mutationObserver = null
 
     /* eslint-disable-next-line */
-    mapElement.removeEventListener('click', DomVerticalMiniMap.scrollDocumentTo.bind(event))
-    window.removeEventListener('resize', this._setMapPointStyles.bind(this))
+    mapElement.removeEventListener('click', DomVerticalMiniMap.scrollTargetTo.bind(this))
 
     if (isScrollElementEnabled) {
-      window.removeEventListener('scroll', this._setScrollElementStyle.bind(this))
-      window.removeEventListener('resize', this._setScrollElementStyle.bind(this))
+      window.removeEventListener('scroll', this._setViewPortElementStyle.bind(this))
+      // window.removeEventListener('resize', this._setViewPortElementStyle.bind(this))
 
-      this._scrollElement.remove()
-      this._scrollElement = null
+      this._viewPortElement.remove()
+      this._viewPortElement = null
     }
-
-    const mapPoints = this._mapPoints
-    for (let i = 0, length = mapPoints.length; i < length; ++i) {
-      const mapPoint = mapPoints[i]
-      mapPoint['marker'].remove()
-    }
-    this._mapPoints = []
-
     mapElement.remove()
     this._mapElement = null
   }
 
   /**
-   * Reinitialize MapPointElements and refresh styles of _scrollElement and MapPointElements
+   * Reinitialize MapPointElements and refresh styles of _viewPortElement and MapPointElements
    *
    */
   refresh () {
-    this._initMapPoints()
-    this._setMapPointStyles()
-
     if (this._isScrollElementEnabled) {
-      this._setScrollElementStyle()
+      this._setViewPortElementStyle()
     }
   }
 
