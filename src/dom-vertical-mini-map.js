@@ -75,28 +75,18 @@ export default class DomVerticalMiniMap {
    */
   async _init () {
     const isScrollElementEnabled = this._isScrollElementEnabled
-
     this._initMapElement()
-
     if (isScrollElementEnabled) {
       this._initViewPortElement()
     }
     await this._initMapPicture()
-
-    const mapElement = this._mapElement
-
-    if (isScrollElementEnabled) {
-      mapElement.appendChild(this._viewPortElement)
-    }
-
-    // this._initMutationObserver()
-
-    // this._mutationObserver.observe(this._mapElement, {
-    //   attributes: true,
-    //   characterData: true,
-    //   childList: true,
-    //   subtree: true
-    // })
+    this._initMutationObserver()
+    this._mutationObserver.observe(this._mapElement, {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true
+    })
   }
 
   /**
@@ -126,6 +116,7 @@ export default class DomVerticalMiniMap {
     }
 
     this._mapPicture.onload = () => {
+      console.log('yyyyy', this._mapPicture.naturalHeight, this._mapPicture.naturalWidth)
       // 找出minimap的最大高度
       // 视口的高度-Minimap距离视口顶部的距离- marginTop - borderTopWidth - padding-top
       const { top } = this._mapElement.getBoundingClientRect()
@@ -162,12 +153,11 @@ export default class DomVerticalMiniMap {
    */
   _initViewPortElement () {
     this._viewPortElement = document.createElement('div')
-
     this._viewPortElement.classList.add('dom-vertical-mini-map-scroll')
-    // this._viewPortElement.style.display = 'none'
-
+    this._mapElement.appendChild(this._viewPortElement)
     this._viewPortElement.style.backgroundColor = this._viewPortElementStyles['backgroundColor']
     const { clientHeight: targetHeight, clientWidth: targetWidth } = this._scrollTarget
+    console.log('xxxxxx', this._viewPortElement.clientHeight)
     this._viewPortElement.style.height = this._mapElementStyles.width * (targetHeight / targetWidth) + 'px'
     window.addEventListener('scroll', this._setViewPortElementStyle.bind(this))
     // window.addEventListener('resize', this._setViewPortElementStyle.bind(this))
@@ -299,11 +289,11 @@ export default class DomVerticalMiniMap {
     // 视口移动的top值/minimap的总高度 === 目标滚动元素滚动的距离/ 目标滚动元素的总高度
     const viewPortTop = scrollTop / scrollHeight * mapScrollHeight
     console.log('------------')
-    console.log('目标元素=> 可见高度, 滑动的距离, 总高度, 可见高度/总高度, 可滑动距离', clientHeight, scrollTop, scrollHeight, clientHeight / scrollHeight, scrollHeight - clientHeight)
-    console.log('minimap当前视口区域=>滑动的距离, 高度, 视口的高度/总高度', viewPortTop, this._viewPortElement.clientHeight, this._viewPortElement.clientHeight / mapScrollHeight)
+    console.log('目标元素=> 可见宽度, 可见高度, 滑动的距离, 总高度, 可见高度/总高度, 可滑动距离', this._scrollTarget.clientWidth, clientHeight, scrollTop, scrollHeight, clientHeight / scrollHeight, scrollHeight - clientHeight)
+    console.log('minimap当前视口区域=>宽度, 滑动的距离, 高度, 视口的高度/图片总高度', this._viewPortElement.clientWidth, viewPortTop, this._viewPortElement.clientHeight, this._viewPortElement.clientHeight / picHeight)
     console.log('minimap=> 可见高度, 总高度, 可滑动距离', mapHeight, mapScrollHeight, mapScrollHeight - mapHeight)
     console.log('map可滑动距离/目标元素可滑动距离', (mapScrollHeight - mapHeight) / (scrollHeight - clientHeight))
-    console.log('map图片=> 高度', picHeight)
+    console.log('map图片=> 高度', this._mapPicture.width, picHeight)
     if (mapHeight < mapScrollHeight) {
       // minimap有溢出，需要跟随target滚动
       // 目标滚动元素滚动的距离/目标滚动元素的总高度 === minimap滚动的距离 / minimap的总高度
@@ -315,7 +305,7 @@ export default class DomVerticalMiniMap {
       this._mapElement.scrollTo({ top: mapTop })
       const viewportTopVal = viewPortTop - mapTop
       console.log('viewport scroll dis=>', viewportTopVal)
-      this._viewPortElement.style.top = viewportTopVal + 'px'
+      this._viewPortElement.style.top = viewPortTop + 'px'
     } else {
       // 没有溢出，只需要滚动视口viewport
       // top不能小于0, top的值+视口的高度不能超过map的高度
