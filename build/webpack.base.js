@@ -1,6 +1,6 @@
 const path = require('path')
-const DefinePlugin = require('webpack').DefinePlugin
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const DefinePlugin = require('webpack').DefinePlugin
 
 module.exports = {
   entry: {

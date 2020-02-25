@@ -1,11 +1,11 @@
 {
-  "name": "dom-vertical-mini-map",
+  "name": "vertical-mini-map",
   "version": "0.0.1",
   "description": "Build vertical mini map of elements in DOM.",
   "author": "Igor Iakovlev <igorxut@gmail.com>",
   "license": "MIT",
   "private": false,
-  "main": "dist/dom-vertical-mini-map.js",
+  "main": "src/index.js",
   "files": [
     "dist",
     "src"
@@ -16,17 +16,9 @@
     "map",
     "minimap"
   ],
-  "bugs": {
-    "url": "https://github.com/igorxut/dom-vertical-mini-map/issues"
-  },
-  "homepage": "https://github.com/igorxut/dom-vertical-mini-map#readme",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/igorxut/dom-vertical-mini-map.git"
-  },
   "scripts": {
     "lint": "eslint src",
-    "build": "webpack --mode=production --config build/webpack.config.js",
+    "build": "webpack --config build/webpack.prod.js",
     "start": "webpack-dev-server --open --config build/webpack.dev.js"
   },
   "devDependencies": {
@@ -45,8 +37,8 @@
     "optimize-css-assets-webpack-plugin": "^5.0.1",
     "uglify-js": "^3.4.9",
     "uglifyjs-webpack-plugin": "^2.2.0",
-    "webpack": "^4.20.2",
-    "webpack-cli": "^3.1.1",
+    "webpack": "^4.41.6",
+    "webpack-cli": "^3.3.11",
     "webpack-dev-server": "^3.10.3",
     "webpack-merge": "^4.2.2"
   },

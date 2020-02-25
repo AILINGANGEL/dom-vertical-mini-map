@@ -91,12 +91,14 @@ const refreshMap = function (map) {
   }
 }
 
+const target = document.querySelector('.grid')
+const scrollTarget = document.querySelector('.grid-container')
 const config = {
-  // target: '.grid',
   container: '#mini-map',
-  scrollTarget: document.documentElement,
+  scrollTarget: scrollTarget,
+  target: target,
   styles: {
-    width: 200
+    width: '20%'
   }
 }
 
